@@ -3,7 +3,7 @@ $(function() {
   /* Build new ShopifyBuy client
   ============================================================ */
   var client = ShopifyBuy.buildClient({
-    apiKey: 'bf081e860bc9dc1ce0654fdfbc20892d',
+    accessToken: 'bf081e860bc9dc1ce0654fdfbc20892d',
     myShopifyDomain: 'embeds',
     appId: '6'
   });
@@ -16,15 +16,15 @@ $(function() {
   Promise.all([cartPromise, productPromise]).then(function (values) {
     cart = values[0];
     product = values[1];
-    
+
     return cart.createLineItemsFromVariants(
       {
-        variant: product.variants[0], 
+        variant: product.variants[0],
         quantity: 5
-      }, 
-      { 
-        variant: product.variants[1], 
-        quantity: 3 
+      },
+      {
+        variant: product.variants[1],
+        quantity: 3
       }
     );
   }).then(function () {
@@ -63,7 +63,7 @@ $(function() {
     }
 
     var data = JSON.parse(event.data);
-    
+
     if (data.current_checkout_page === '/checkout/thank_you') {
       cart.clearLineItems();
       completeUIRendering();
