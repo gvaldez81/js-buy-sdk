@@ -21,6 +21,8 @@ import imageConnectionQuery from '../src-graphql/image-connection-query';
 import optionQuery from '../src-graphql/option-query';
 import variantConnectionQuery from '../src-graphql/variant-connection-query';
 import collectionQuery from '../src-graphql/collection-query';
+import productConnectionQuery from '../src-graphql/product-connection-query';
+import collectionConnectionQuery from '../src-graphql/collection-connection-query';
 
 suite('client-test', () => {
   teardown(() => {
@@ -249,6 +251,40 @@ suite('client-test', () => {
 
     return client.fetchProduct('7857989384', productQuery(['id'])).then((product) => {
       assert.equal(typeof product.images, 'undefined', 'images are not queried');
+      assert.ok(fetchMock.done());
+    });
+  });
+
+  test('it can fetch products with the query arg', () => {
+    const config = new Config({
+      domain: 'query-products.myshopify.com',
+      storefrontAccessToken: 'abc123'
+    });
+
+    const client = new Client(config);
+
+    fetchMock.postOnce('https://query-products.myshopify.com/api/graphql', {data: {shop: {products: {edges: [{node: {title: 'Cat'}}]}}}});
+
+    return client.fetchQueryProducts({title: 'Cat', limit: 10}, productConnectionQuery(['title'])).then((products) => {
+      assert.equal(products.length, 1);
+      assert.equal(products[0].title, 'Cat');
+      assert.ok(fetchMock.done());
+    });
+  });
+
+  test('it can fetch collections with the query arg', () => {
+    const config = new Config({
+      domain: 'query-collections.myshopify.com',
+      storefrontAccessToken: 'abc123'
+    });
+
+    const client = new Client(config);
+
+    fetchMock.postOnce('https://query-collections.myshopify.com/api/graphql', {data: {shop: {collections: {edges: [{node: {title: 'Cat Collection'}}]}}}});
+
+    return client.fetchQueryCollections({title: 'Cat Collection', limit: 10}, collectionConnectionQuery(['title'])).then((collections) => {
+      assert.equal(collections.length, 1);
+      assert.equal(collections[0].title, 'Cat Collection');
       assert.ok(fetchMock.done());
     });
   });

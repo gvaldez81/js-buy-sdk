@@ -87,4 +87,63 @@ export default class Client {
       return response.model.node;
     });
   }
+
+  fetchQueryProducts(queryObject = {}, query = productConnectionQuery()) {
+    const queryArgStrings = [];
+    const options = {};
+
+    if (queryObject.title) {
+      queryArgStrings.push(`title:'${queryObject.title}'`);
+    }
+    if (queryObject.updatedAtMin) {
+      queryArgStrings.push(`updated_at:>='${queryObject.updatedAtMin}'`);
+    }
+    if (queryObject.createdAtMin) {
+      queryArgStrings.push(`created_at:>='${queryObject.createdAtMin}'`);
+    }
+    if (queryObject.productType) {
+      queryArgStrings.push(`product_type:'${queryObject.productType}'`);
+    }
+    if (queryObject.limit) {
+      options.first = queryObject.limit;
+    }
+
+    options.query = queryArgStrings.join(' ');
+
+    return this.graphQLClient.send(query(this.graphQLClient, options)).then(({model, data}) => {
+      const promises = model.shop.products.reduce((promiseAcc, product, i) => {
+        const productData = data.shop.products.edges[i].node;
+
+        // Fetch the rest of the images and variants for this product
+        saturateProducts(promiseAcc, productData, product, this.graphQLClient);
+
+        return promiseAcc;
+      }, []);
+
+      return Promise.all(promises).then(() => {
+        return model.shop.products;
+      });
+    });
+  }
+
+  fetchQueryCollections(queryObject = {}, query = collectionConnectionQuery()) {
+    const queryArgStrings = [];
+    const options = {};
+
+    if (queryObject.title) {
+      queryArgStrings.push(`title:'${queryObject.title}'`);
+    }
+    if (queryObject.updatedAtMin) {
+      queryArgStrings.push(`updated_at:>='${queryObject.updatedAtMin}'`);
+    }
+    if (queryObject.limit) {
+      options.first = queryObject.limit;
+    }
+
+    options.query = queryArgStrings.join(' ');
+
+    return this.graphQLClient.send(query(this.graphQLClient, options)).then((response) => {
+      return response.model.shop.collections;
+    });
+  }
 }

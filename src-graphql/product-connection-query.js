@@ -7,10 +7,10 @@ const defaultFields = ['id', 'createdAt', 'updatedAt', 'descriptionHtml', 'descr
   'publishedAt', ['options', optionQuery()], ['images', imageConnectionQuery()], ['variants', variantConnectionQuery()]];
 
 export default function productConnectionQuery(fields = defaultFields) {
-  return function(client) {
+  return function(client, options) {
     return client.query((root) => {
       root.add('shop', (shop) => {
-        shop.addConnection('products', {args: {first: 20}}, (products) => {
+        shop.addConnection('products', {args: Object.assign({first: 20}, options)}, (products) => {
           addFields(products, fields);
         });
       });
