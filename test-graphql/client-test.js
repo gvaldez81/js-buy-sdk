@@ -14,6 +14,8 @@ import productWithPaginatedImagesFixture from '../fixtures/product-with-paginate
 import {secondPageImagesFixture, thirdPageImagesFixture, emptyPageImagesFixture} from '../fixtures/paginated-images-fixtures';
 import productWithPaginatedVariantsFixture from '../fixtures/product-with-paginated-variants-fixture';
 import {secondPageVariantsFixture, thirdPageVariantsFixture, emptyPageVariantsFixture} from '../fixtures/paginated-variants-fixtures';
+import queryProductFixture from '../fixtures/query-product-fixture';
+import queryCollectionFixture from '../fixtures/query-collection-fixture';
 import fetchMock from './isomorphic-fetch-mock'; // eslint-disable-line import/no-unresolved
 import productQuery from '../src-graphql/product-query';
 import imageQuery from '../src-graphql/image-query';
@@ -25,6 +27,12 @@ import productConnectionQuery from '../src-graphql/product-connection-query';
 import collectionConnectionQuery from '../src-graphql/collection-connection-query';
 
 suite('client-test', () => {
+  const querySplitter = /[\s,]+/;
+
+  function tokens(query) {
+    return query.split(querySplitter).filter((token) => Boolean(token));
+  }
+
   teardown(() => {
     fetchMock.restore();
   });
@@ -263,11 +271,39 @@ suite('client-test', () => {
 
     const client = new Client(config);
 
-    fetchMock.postOnce('https://query-products.myshopify.com/api/graphql', {data: {shop: {products: {edges: [{node: {title: 'Cat'}}]}}}});
+    fetchMock.postOnce('https://query-products.myshopify.com/api/graphql', queryProductFixture);
 
-    return client.fetchQueryProducts({title: 'Cat', limit: 10}, productConnectionQuery(['title'])).then((products) => {
+    const query = {title: 'Cat', updatedAtMin: '2016-09-25T21:31:33', createdAtMin: '2016-09-25T21:31:33', productType: 'dog', limit: 10};
+
+    return client.fetchQueryProducts(query, productConnectionQuery(['updatedAt', 'createdAt', 'productType', 'title'])).then((products) => {
+      const [_arg, {body}] = fetchMock.lastCall('https://query-products.myshopify.com/api/graphql');
+      const queryString = `query {
+        shop {
+          products (first: 10 query: "title:'Cat' updated_at:>='2016-09-25T21:31:33' created_at:>='2016-09-25T21:31:33' product_type:'dog'") {
+            pageInfo {
+              hasNextPage,
+              hasPreviousPage
+            },
+            edges {
+              cursor,
+              node {
+                id,
+                updatedAt,
+                createdAt,
+                productType,
+                title
+              }
+            }
+          }
+        }
+      }`;
+
+      assert.deepEqual(tokens(JSON.parse(body).query), tokens(queryString));
       assert.equal(products.length, 1);
-      assert.equal(products[0].title, 'Cat');
+      assert.equal(products[0].title, queryProductFixture.data.shop.products.edges[0].node.title);
+      assert.equal(products[0].createdAt, queryProductFixture.data.shop.products.edges[0].node.createdAt);
+      assert.equal(products[0].updatedAt, queryProductFixture.data.shop.products.edges[0].node.updatedAt);
+      assert.equal(products[0].productType, queryProductFixture.data.shop.products.edges[0].node.productType);
       assert.ok(fetchMock.done());
     });
   });
@@ -280,11 +316,35 @@ suite('client-test', () => {
 
     const client = new Client(config);
 
-    fetchMock.postOnce('https://query-collections.myshopify.com/api/graphql', {data: {shop: {collections: {edges: [{node: {title: 'Cat Collection'}}]}}}});
+    fetchMock.postOnce('https://query-collections.myshopify.com/api/graphql', queryCollectionFixture);
 
-    return client.fetchQueryCollections({title: 'Cat Collection', limit: 10}, collectionConnectionQuery(['title'])).then((collections) => {
+    const query = {title: 'Cat Collection', updatedAtMin: '2016-09-25T21:31:33', limit: 10};
+
+    return client.fetchQueryCollections(query, collectionConnectionQuery(['title', 'updatedAt'])).then((collections) => {
+      const [_arg, {body}] = fetchMock.lastCall('https://query-collections.myshopify.com/api/graphql');
+      const queryString = `query {
+        shop {
+          collections (first: 10 query: "title:'Cat Collection' updated_at:>='2016-09-25T21:31:33'") {
+            pageInfo {
+              hasNextPage,
+              hasPreviousPage
+            },
+            edges {
+              cursor,
+              node {
+                id,
+                title,
+                updatedAt
+              }
+            }
+          }
+        }
+      }`;
+
+      assert.deepEqual(tokens(JSON.parse(body).query), tokens(queryString));
       assert.equal(collections.length, 1);
-      assert.equal(collections[0].title, 'Cat Collection');
+      assert.equal(collections[0].title, queryCollectionFixture.data.shop.collections.edges[0].node.title);
+      assert.equal(collections[0].updatedAt, queryCollectionFixture.data.shop.collections.edges[0].node.updatedAt);
       assert.ok(fetchMock.done());
     });
   });
